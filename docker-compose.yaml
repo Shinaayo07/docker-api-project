@@ -1,0 +1,54 @@
+services:
+   api-node:
+     image: shina371/apinode:v1
+     networks:
+       - api-network
+     environment:
+        DATABASE_URL: postgres://postgres:foobarbaz@postgresdb:5432/mydb
+     ports:
+       - 3000:3000
+     depends_on:
+       - postgresdb
+     restart: unless-stopped
+   api-golang:
+     image: shina371/apigo:v1
+     networks:
+       - api-network
+     environment:
+        DATABASE_URL: postgres://postgres:foobarbaz@postgresdb:5432/mydb
+     ports:
+       - 8080:8080
+     depends_on:
+      - postgresdb
+     restart: unless-stopped
+   client-react-vite:
+      image: shina371/apivite:v1
+      networks:
+        - api-network
+      ports: 
+        - 5173:5173
+      restart: unless-stopped
+   client-react-nginx:
+      image: shina371/apicl:v1
+      networks:
+        - api-network
+      ports:
+        - 80:8080
+      restart: unless-stopped
+
+   postgresdb:
+      image: postgres:15.1-alpine
+      networks:
+        - api-network
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      ports:
+        - 5432:5432
+      environment:
+        POSTGRES_PASSWORD: foobarbaz
+      restart: unless-stopped
+
+volumes:
+   pgdata:
+networks:
+   api-network: {}

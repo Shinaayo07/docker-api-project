@@ -1,0 +1,50 @@
+#Picking Base image for my image
+#Multi-staging purpose
+FROM node:24.0-bullseye-slim AS base 
+
+#Creating a Directory and moving into it.
+WORKDIR /app
+
+#Copy only files required to intall dependencies (better layer caching)
+COPY package*.json ./
+
+#Taking from the base stage above
+FROM base AS dev
+
+#Using the mountkit to tell npm to always read and write to
+#that folder so that it can always make use of it during build stage
+RUN --mount=type=cache,target=/app/.npm \
+  npm set cache /app/.npm && \
+  npm install
+
+COPY . .
+
+CMD [ "npm", "run", "dev" ]
+
+#from the above stage into this present stage
+FROM base AS production
+
+#set NODE_ENV 
+ENV NODE_ENV=production
+
+#Install only production dependencies according to spec
+#Use cache mount to speed up install of existing dependencies
+RUN --mount=type=cache,target=/app/.npm \
+  npm set cache /app/.npm && \
+  npm ci --only=production
+#Use non-root user
+#using --chown on COPY to change ownership of the file as well as permission
+USER node
+
+#Copy the healthcheck script
+COPY --chown=node:node ./healthcheck/ .
+
+#copy the src directory remaining the source code after installing
+#dependencies
+COPY --chown=node:node ./src/ .
+
+#indicating the port as  specified in the script
+EXPOSE 3000
+
+CMD [ "node", "index.js" ]
+
